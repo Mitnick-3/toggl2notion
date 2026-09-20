@@ -207,6 +207,12 @@ class NotionHelper:
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
     def query(self, **kwargs):
         kwargs = {k: v for k, v in kwargs.items() if v}
+
+db_info = self.client.databases.retrieve(database_id=kwargs["database_id"])
+data_source_id = db_info["data_sources"][0]["id"]
+kwargs["data_source_id"] = data_source_id
+del kwargs["database_id"]
+        
         return self.client.databases.query(**kwargs)
 
     @retry(stop_max_attempt_number=3, wait_fixed=5000)
