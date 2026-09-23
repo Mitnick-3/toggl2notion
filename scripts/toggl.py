@@ -18,7 +18,7 @@ def get_time_entries():
     start = now.subtract(days=30).start_of("day")
     # 格式化时间
     start = start.to_iso8601_string()
-    print("start")
+    print(start)
     params = {"start_date": start, "end_date": end}
     response = requests.get(
         "https://api.track.toggl.com/api/v9/me/time_entries", params=params, auth=auth
@@ -32,7 +32,7 @@ def insert_to_notion():
     now = pendulum.now("Asia/Shanghai")
     # toggl只支持90天的数据
     end = now.to_iso8601_string()
-    print("now","end")
+    print(now,end)
     start = now.subtract(days=30)
     # 格式化时间
     start = start.to_iso8601_string()
