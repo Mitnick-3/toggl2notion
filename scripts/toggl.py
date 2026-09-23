@@ -15,7 +15,7 @@ def get_time_entries():
     now = pendulum.now("UTC")
     # toggl只支持90天的数据
     end = now.to_iso8601_string()
-    start = now.subtract(days=90).start_of("day")
+    start = now.subtract(days=30).start_of("day")
     # 格式化时间
     start = start.to_iso8601_string()
     params = {"start_date": start, "end_date": end}
