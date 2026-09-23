@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 from utils import get_embed
 from notion_helper import NotionHelper
 
@@ -21,9 +22,10 @@ if __name__ == "__main__":
     notion_helper = NotionHelper()
     image_file = get_file()
     if image_file:
-        image_url = f"https://raw.githubusercontent.com/{os.getenv('REPOSITORY')}/{os.getenv('REF').split('/')[-1]}/OUT_FOLDER/{image_file}"
+        # 使用jsdelivr CDN + 时间戳防缓存
+        image_url = f"https://cdn.jsdelivr.net/gh/{os.getenv('REPOSITORY')}@{os.getenv('REF').split('/')[-1]}/OUT_FOLDER/{image_file}?t={int(time.time())}"
         heatmap_url = f"https://heatmap.malinkang.com/?image={image_url}"
-        print(f"图片raw地址: {image_url}")
+        print(f"图片CDN地址: {image_url}")
         print(f"热力图完整embed地址: {heatmap_url}")
         if notion_helper.heatmap_block_id:
             print(f"✅ 找到heatmap_block_id={notion_helper.heatmap_block_id}, 执行更新块")
@@ -37,12 +39,8 @@ if __name__ == "__main__":
                 block_id=notion_helper.page_id, children=[get_embed(heatmap_url)]
             )
             print(f"append_blocks 返回: {response}")
-            # 【关键】从返回结果拿到新块ID，保存！下次就可以直接update，不再新增
-            # response["appended"][0]["id"] 就是新建embed块的block_id
             if response and response.get("appended"):
                 new_block_id = response["appended"][0]["id"]
                 print(f"🎉 新增embed成功，新block_id={new_block_id}")
-                # 你需要把 new_block_id 持久化保存（写入github env或者notion页面属性）
-                # 下一次运行读取这个id赋值给 notion_helper.heatmap_block_id
     else:
         print("❌ 没有找到图片文件，跳过同步")
