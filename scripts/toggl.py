@@ -28,21 +28,28 @@ def get_time_entries():
     return time_entries
 
 
+import pendulum
+
 def insert_to_notion():
     # 获取当前UTC时间
     now = pendulum.now("Asia/Shanghai")
+    # Toggl最小允许查询日期（UTC）
+    MIN_TOGGL_DATE = pendulum.datetime(2026, 6, 23, tz="UTC")
+
     # toggl只支持90天的数据
     end = now.to_iso8601_string()
     start = now.subtract(days=30)
     # 格式化时间
     start = start.to_iso8601_string()
-    print(start)
+    print(f"初始默认start: {start}")
+
     sorts = [{"property": "时间", "direction": "descending"}]
     page_size = 1
     response = notion_helper.query(
         database_id=notion_helper.time_database_id, sorts=sorts, page_size=page_size
     )
     if len(response.get("results")) > 0:
+        # 从Notion拿到上次同步结束时间
         start = (
             response.get("results")[0]
             .get("properties")
@@ -50,7 +57,22 @@ def insert_to_notion():
             .get("date")
             .get("end")
         )
+        print(f"从Notion读取到上次end作为start: {start}")
+
+    # ========== 核心新增：日期兜底校验 ==========
+    # 解析start，转UTC对比下限
+    start_dt = pendulum.parse(start)
+    start_dt_utc = start_dt.in_timezone("UTC")
+    if start_dt_utc < MIN_TOGGL_DATE:
+        start_dt_utc = MIN_TOGGL_DATE
+        start = start_dt_utc.to_iso8601_string()
+        print(f"⚠️ 日期超出Toggl限制，自动修正start为: {start}")
+    else:
+        start = start_dt.to_iso8601_string()
+    # ============================================
+
     params = {"start_date": start, "end_date": end}
+    print(f"[DEBUG] 请求Toggl time_entries start={start}, end={end}")
     response = requests.get(
         "https://api.track.toggl.com/api/v9/me/time_entries", params=params, auth=auth
     )
@@ -73,27 +95,27 @@ def insert_to_notion():
                 project_id = task.get("project_id")
                 if project_id:
                     workspace_id = task.get("workspace_id")
-                    start = pendulum.parse(task.get("start"))
-                    stop = pendulum.parse(task.get("stop"))
-                    start = start.in_timezone("Asia/Shanghai").int_timestamp
-                    stop = stop.in_timezone("Asia/Shanghai").int_timestamp
-                    item["时间"] = (start, stop)
-                    response = requests.get(
+                    start_task = pendulum.parse(task.get("start"))
+                    stop_task = pendulum.parse(task.get("stop"))
+                    start_task = start_task.in_timezone("Asia/Shanghai").int_timestamp
+                    stop_task = stop_task.in_timezone("Asia/Shanghai").int_timestamp
+                    item["时间"] = (start_task, stop_task)
+                    response_project = requests.get(
                         f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects/{project_id}",
                         auth=auth,
                     )
-                    project = response.json().get("name")
+                    project = response_project.json().get("name")
                     emoji, project = split_emoji_from_string(project)
                     item["标题"] = project
-                    client_id = response.json().get("cid")
+                    client_id = response_project.json().get("cid")
                     #默认金币设置为1
                     project_properties = {"金币":{"number": 1}}
                     if client_id:
-                        response = requests.get(
+                        response_client = requests.get(
                             f"https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/clients/{client_id}",
                             auth=auth,
                         )
-                        client = response.json().get("name")
+                        client = response_client.json().get("name")
                         client_emoji, client = split_emoji_from_string(client)
                         item["Client"] = [
                             notion_helper.get_relation_id(
@@ -121,7 +143,7 @@ def insert_to_notion():
                     "type": "database_id",
                 }
                 notion_helper.get_date_relation(
-                    properties, pendulum.from_timestamp(stop, tz="Asia/Shanghai")
+                    properties, pendulum.from_timestamp(stop_task, tz="Asia/Shanghai")
                 )
                 icon = {"type": "emoji", "emoji": emoji}
                 notion_helper.create_page(parent=parent, properties=properties, icon=icon)
