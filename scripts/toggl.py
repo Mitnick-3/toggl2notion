@@ -32,12 +32,10 @@ def insert_to_notion():
     now = pendulum.now("Asia/Shanghai")
     # toggl只支持90天的数据
     end = now.to_iso8601_string()
-    print(now)
     start = now.subtract(days=30)
     # 格式化时间
-    print(start)
     start = start.to_iso8601_string()
-    print(end)
+    print(start)
     sorts = [{"property": "时间", "direction": "descending"}]
     page_size = 1
     response = notion_helper.query(
