@@ -24,6 +24,7 @@ def get_time_entries():
         "https://api.track.toggl.com/api/v9/me/time_entries", params=params, auth=auth
     )
     time_entries = response.json()
+    print(time_entries)
     return time_entries
 
 
