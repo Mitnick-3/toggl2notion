@@ -5,10 +5,7 @@ from utils import get_embed
 from notion_helper import NotionHelper
 
 def get_file():
-    # 打印每条记录：日期、当日总时长（小时）
-    print(f"日期:{day}, 总时长(h):{total_hour}")
-
-    # 设置文件夹路径
+       # 设置文件夹路径
     folder_path = './OUT_FOLDER'
     # 检查文件夹是否存在
     if os.path.exists(folder_path) and os.path.isdir(folder_path):
